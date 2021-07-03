@@ -1,52 +1,88 @@
 import string
+import re
+import difflib
 vowels = 'aeiou'
+consonants = 'bcdfghjklmnpqrstvwxyz'
+
+
+def load_words(file_name):
+    print("Loading word list from file...")
+    with open(file_name) as word_file:
+        valid_words = set(word_file.read().split())
+    print("  ", len(valid_words), "words loaded.")
+    return list(valid_words)
+
+def numb_of_consonants(word):
+    summed = sum([z in consonants for z in word])
+    return summed
+
 class Decrypt():
     def __init__(self,message):
         self.__message = message
+        self.valid_words = load_words("words.txt")
 
-    def remove_vowel(self,word):
-        word = word.lower()
-        
-        removed = ''
-        for i in range(len(word)):
-            if word[i] in vowels and i>=1 and i<=len(word)-2: #vowels that occur mid word
-                if word[i+1] in vowels and i+1<len(word)-1: # next letter is a vowel and occur mid letter
-                    removed += word[i]
-                else:
-                    continue
-            else:
-                removed += word[i]
-        return removed
                     
-    def build_shift_dictionary(self,shift=4):
+    def build_transpose_dictionary(self,shift=4):
         letters = string.ascii_lowercase
         dict = {}
-        for x in letters:
-            dict[x] = letters[(letters.index(x) + shift)%26 ] 
+        #dictionary to map letters with shifted index greater that 25
+        extra = {
+            22: '[',
+            23: '\\',
+            24: ']',
+            25: '%'
+
+        }
+        
+        for x in range(4, len(letters)):
+            
+            dict[letters[x]] = letters[x-shift] 
+        for y in extra:
+            dict[extra[y]] = letters[y]
 
         return dict
     
-    def encrypt_message(self):
-        msg = self.__message.split(" ")
-        vowel_removed = []
-        for word in msg:
-            vowel_removed.append(self.remove_vowel(word))
-        message = " ".join(vowel_removed)
-        encrypted_message = ''
-        for l in message:
-            if l in self.build_shift_dictionary():
-                encrypted_message += self.build_shift_dictionary()[l]
+    def reshift_message(self):
+        
+        decrypted_message = ''
+        for l in self.__message.lower():
+            if l in self.build_transpose_dictionary():
+                decrypted_message += self.build_transpose_dictionary()[l]
             else:
-                encrypted_message += l
-        return encrypted_message.upper()
+                if(l=='2'):
+                    decrypted_message += '.'
+                else:
+                    decrypted_message += l
+        return decrypted_message
+
+    def decrypt_message(self):
+        message_list = self.reshift_message().split(" ")
+        msg = ""
+        for word in message_list:
+            # n = len(word)-1
+            # related_words = re.findall(rf"\b{word[0]}\S+{word[n]}\b",self.valid_words)
+            guesses = difflib.get_close_matches(word,self.valid_words)
+            guesses = [y for y in guesses if numb_of_consonants(word)==numb_of_consonants(y) ]
+            if '.' in word:
+                if len(guesses)>=1:
+                    msg += " " + str(guesses[0]) + '.'
+    
+                else:
+                   msg += " " + "???" + '.' #If guess not found
+            else:
+                if len(guesses)>=1:
+                    msg += " " + str(guesses[0]) #Take first guess
+                else:
+                    msg += " " + "???"
+
+        return msg.strip().upper()
+
+
+x= Decrypt("E PRK XQI EKS MR E KP\] JV JV E[]222")
+
+#"QGLRI PIVRRK MW XLI WXH] SJ GQTXV EPKVXLQW XLX MQTVZI EXQXGPP] XLVSKL I\TVMRGI ERH "
+print(x.decrypt_message())
 
 
 
-            
 
-
-
-
-
-x=Decrypt("MACHINE")
-print(x.encrypt_message())
